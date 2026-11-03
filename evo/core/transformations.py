@@ -1269,11 +1269,28 @@ def quaternion_matrix(quaternion):
     True
 
     """
-    q = numpy.array(quaternion, dtype=numpy.float64, copy=True)
+    q = numpy.asarray(quaternion, dtype=numpy.float64)
+    if q.shape == (4,):
+        # fast path: scalar arithmetic on the four components
+        w, x, y, z = q.tolist()
+        n = w*w + x*x + y*y + z*z
+        if n < _EPS:
+            return numpy.identity(4)
+        # scale one factor of each product by 2/n, which avoids the sqrt
+        s = 2.0 / n
+        xs, ys, zs = x*s, y*s, z*s
+        xx, yy, zz = x*xs, y*ys, z*zs
+        xy, xz, yz = x*ys, x*zs, y*zs
+        wx, wy, wz = w*xs, w*ys, w*zs
+        return numpy.array([
+            1.0-yy-zz,     xy-wz,     xz+wy, 0.0,
+                xy+wz, 1.0-xx-zz,     yz-wx, 0.0,
+                xz-wy,     yz+wx, 1.0-xx-yy, 0.0,
+                  0.0,       0.0,       0.0, 1.0]).reshape(4, 4)
     n = numpy.dot(q, q)
     if n < _EPS:
         return numpy.identity(4)
-    q *= math.sqrt(2.0 / n)
+    q = q * math.sqrt(2.0 / n)
     q = numpy.outer(q, q)
     return numpy.array([
         [1.0-q[2, 2]-q[3, 3],     q[1, 2]-q[3, 0],     q[1, 3]+q[2, 0], 0.0],
